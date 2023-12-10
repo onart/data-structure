@@ -1,6 +1,13 @@
 #include <cstdlib>
 namespace onart{
 
+    template<class T>
+    inline void swap(T& a, T& b){
+        T c = b;
+        b = a;
+        a = c;
+    }
+
     template<class K, class V>
     struct kvpair{
         K first;
@@ -107,6 +114,21 @@ namespace onart{
                 }
             }
 
+            inline iterator erase(iterator& i){
+                if(i._container != this || i == end()){ return; }
+                iterator ret = i;
+                ++ret;
+                i.node->remove();
+                i.node->value.~T();
+                deallocate(i.node);
+                return ret;
+            }
+
+            inline iterator erase(const _key_t& k){
+                iterator i = find(k);
+                return erase(i);
+            }
+
             class iterator{
                 friend class set;
                 public:
@@ -207,6 +229,10 @@ namespace onart{
                     }
                 }
 
+                inline void rbbalanceR() {
+
+                }
+
                 inline void insertRight(__RBT_Node* newRight){
                     right = newRight;
                     right->red = true;
@@ -235,7 +261,31 @@ namespace onart{
                 }
 
                 inline void remove(){
-                    
+                    if(!parent){
+                        return;
+                    }
+                    if(left && right){ // we want to preserve all iterators which didn't removed
+                        bool thisIsLeft = isLeft();
+                        bool prevIsLeft = prev->isLeft();
+                        swap(parent, prev->parent);
+                        if(thisIsLeft) prev->parent->left = prev; else prev->parent->right = prev;
+                        if(prevIsLeft) parent->left = this; else parent->right = this;
+                        swap(left, prev->left);
+                        if(left) left->parent = this;
+                        if(prev->left) prev->left->parent = prev;
+                        swap(right, prev->right);
+                        if(right) right->parent = this;
+                        if(prev->right) prev->right->parent = prev;
+                    }
+                    if(prev){
+                        if(next) next->prev = prev;
+                        prev->next = next;
+                    }
+                    if(next){
+                        //if(prev) prev->next = next;
+                        next->prev = prev;
+                    }
+                    rbbalanceR();
                 }
             };
             __RBT_Node* root = nullptr;
@@ -264,6 +314,4 @@ namespace onart{
 
     template<class K, class V>
     using map = set<kvpair<K,V>>;
-    using isk = map<int, int>::_key_t;
-    using ksk = set<float>::_value_t;
 }
