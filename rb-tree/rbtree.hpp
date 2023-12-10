@@ -70,11 +70,40 @@ namespace onart{
             template<__enableif<IS_MAP, bool>::TYPE = true>
             inline _value_t& operator[](const key_t& k) const {
                 __RBT_Node* cur = root;
-                while(cur){
+                if(cur) while(1){
                     const _key_t& ck = getKey(cur->value);
-                    if(ck < k) cur = cur->right;
-                    else if(k < ck) cur = cur->left;
+                    if(ck < k) { 
+                        if(cur->right){ cur = cur->right; }
+                        else{
+                            __RBT_Node* newNode = allocate();
+                            newNode->red = true;
+                            cur->insertRight(newNode);
+                            newNode->value.first = k;
+                            return newNode->value.second;
+                        }
+                    }
+                    else if(k < ck) { 
+                        if(cur->left) cur = cur->left;
+                        else{
+                            __RBT_Node* newNode = allocate();
+                            newNode->red = true;
+                            cur->insertLeft(newNode);
+                            newNode->value.first = k;
+                            return newNode->value.second;
+                        }
+                    }
                     else return cur->value.second;
+                }
+                else{
+                    root = allocate();
+                    root->parent = nullptr;
+                    root->left = nullptr;
+                    root->right = nullptr;
+                    root->red = false;
+                    root->next = &endNode;
+                    root->prev = &endNode;
+                    root->value.first = k;
+                    return root->value.second;
                 }
             }
 
@@ -107,6 +136,107 @@ namespace onart{
                 __RBT_Node* right = nullptr;
                 __RBT_Node* prev = nullptr;
                 __RBT_Node* next = nullptr;
+                inline bool isLeft(){
+                    //if(!parent) return false;
+                    return parent->left == this;
+                }
+                inline __RBT_Node* grandParent() {
+                    //if(!parent) return nullptr;
+                    return parent->parent;
+                }
+                inline __RBT_Node* sibling() {
+                    //if(!parent) return nullptr;
+                    return reinterpret_cast<__RBT_Node*>(
+                        (unsigned long long)(parent->left) ^ (unsigned long long)(parent->right) ^ (unsigned long long)(this)
+                    );
+                }
+                inline __RBT_Node* uncle(){
+                    //if(!parent) return nullptr;
+                    return parent->sibling();
+                }
+
+                inline void rotateLeft(){
+                    bool wasLeft = isLeft();
+                    __RBT_Node* gp = parent;
+                    parent = right;
+                    right->parent = gp;
+                    right = parent->left;
+                    if(right) right->parent = this;
+                    if(wasLeft){ gp->left = parent; }
+                    else{ gp->right = parent; }
+                    parent->left = this;
+                }
+
+                inline void rotateRight(){
+                    bool wasLeft = isLeft();
+                    __RBT_Node* gp = parent;
+                    parent = left;
+                    left->parent = gp;
+                    left = parent->right;
+                    if(left) left->parent = this;
+                    if(wasLeft){ gp->left = parent; }
+                    else{ gp->right = parent; }
+                    parent->right = this;
+                }
+
+                inline void rbbalance(__RBT_Node* newNode){
+                    if(red){
+                        __RBT_Node* newUncle = sibling();
+                        if(newUncle && newUncle->red) {
+                            red = false;
+                            newUncle->red = false;
+                            if(parent->parent){
+                                parent->red = true;
+                                parent->parent->rbbalance(parent);
+                            }
+                            else{
+                                return;
+                            }
+                        }
+                        else{
+                            bool newIsLeft = newNode->isLeft();
+                            bool thisIsLeft = isLeft();
+                            __RBT_Node* midNode = this;
+                            if(!newIsLeft && thisIsLeft){ rotateLeft(); midNode = parent; newNode = this; }
+                            else if(newIsLeft && !thisIsLeft){ rotateRight(); midNode = parent; newNode = this; }
+                            midNode->red = false;
+                            midNode->parent->red = true;
+                            if(midNode->isLeft()){ midNode->parent->rotateRight(); }
+                            else{ midNode->parent->rotateLeft(); }
+                        }
+                    }
+                }
+
+                inline void insertRight(__RBT_Node* newRight){
+                    right = newRight;
+                    right->red = true;
+                    right->parent = this;
+                    right->left = nullptr;
+                    right->right = nullptr;
+                    right->prev = this;
+                    if(next){ next->prev = right; }
+                    right->next = next;
+                    next = right;
+                    rbbalance(right);
+                }
+
+                inline __RBT_Node* insertLeft(__RBT_Node* newLeft) {
+                    left = newLeft;
+                    left->red = true;
+                    left->parent = this;
+                    left->left = nullptr;
+                    left->right = nullptr;
+                    left->next = this;
+                    left->prev = this;
+                    if(prev){ prev->next = left; }
+                    left->prev = prev;
+                    prev = left;
+                    rbbalance(left);
+                }
+
+                inline void remove(){
+                    
+                }
             };
             __RBT_Node* root = nullptr;
             __RBT_Node* head = nullptr;
