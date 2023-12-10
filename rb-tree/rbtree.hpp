@@ -75,7 +75,7 @@ namespace onart{
             }
 
             template<__enableif<IS_MAP, bool>::TYPE = true>
-            inline _value_t& operator[](const key_t& k) const {
+            inline _value_t& operator[](const _key_t& k) const {
                 __RBT_Node* cur = root;
                 if(cur) while(1){
                     const _key_t& ck = getKey(cur->value);
@@ -96,6 +96,7 @@ namespace onart{
                             newNode->red = true;
                             cur->insertLeft(newNode);
                             newNode->value.first = k;
+                            if(newNode->prev == &endNode) head = newNode;
                             return newNode->value.second;
                         }
                     }
@@ -110,8 +111,13 @@ namespace onart{
                     root->next = &endNode;
                     root->prev = &endNode;
                     root->value.first = k;
+                    head = root;
                     return root->value.second;
                 }
+            }
+
+            inline iterator insert(const T& t){
+                const _key_t& k = getKey(t);
             }
 
             inline iterator erase(iterator& i){
@@ -253,7 +259,6 @@ namespace onart{
                     left->left = nullptr;
                     left->right = nullptr;
                     left->next = this;
-                    left->prev = this;
                     if(prev){ prev->next = left; }
                     left->prev = prev;
                     prev = left;
